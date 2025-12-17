@@ -85,7 +85,9 @@ inline void SortSingularValues(inout float3x3 B, inout float3x3 V)
     float3 b0 = float3(B[0][0], B[1][0], B[2][0]);
     float3 b1 = float3(B[0][1], B[1][1], B[2][1]);
     float3 b2 = float3(B[0][2], B[1][2], B[2][2]);
-    float pho0 = length(b0), pho1 = length(b1), pho2 = length(b2);
+    float pho0 = dot(b0, b0);
+    float pho1 = dot(b1, b1);
+    float pho2 = dot(b2, b2);
 
     bool c = pho0 < pho1;
     CondNegSwap(c, b0, b1); CondNegSwap(c, v0, v1);
@@ -128,10 +130,12 @@ inline void QrGivensQuaternion(in float a1, in float a2, out float ch, out float
 
 inline void RotateSymmetricMatrix(inout float3x3 mat, in float ch, in float sh, in int p, in int q)
 {
-    float a = 1.0 - 2.0 * sh * sh;
-    float b = 2.0 * ch * sh;
+    float c = ch * ch - sh * sh;
+    float s = 2.0 * ch * sh;
 
-    float aa = a * a; float bb = b * b; float ab = a * b;
+    float cc = c * c;
+    float ss = s * s;
+    float cs = c * s;
 
     int k = 3 - (p + q);
 
@@ -141,11 +145,11 @@ inline void RotateSymmetricMatrix(inout float3x3 mat, in float ch, in float sh, 
     float s_kp = mat[k][p];
     float s_kq = mat[k][q];
 
-    float n_pp = aa * s_pp + 2.0 * ab * s_pq + bb * s_qq;
-    float n_qq = bb * s_pp - 2.0 * ab * s_pq + aa * s_qq;
-    float n_pq = (aa - bb) * s_pq + ab * (s_qq - s_pp);
-    float n_kp = a * s_kp + b * s_kq;
-    float n_kq = -b * s_kp + a * s_kq;
+    float n_pp = cc * s_pp + 2.0 * cs * s_pq + ss * s_qq;
+    float n_qq = ss * s_pp - 2.0 * cs * s_pq + cc * s_qq;
+    float n_pq = (cc - ss) * s_pq + cs * (s_qq - s_pp);
+    float n_kp = c * s_kp + s * s_kq;
+    float n_kq = -s * s_kp + c * s_kq;
 
     mat[p][p] = n_pp;
     mat[q][q] = n_qq;
@@ -156,14 +160,14 @@ inline void RotateSymmetricMatrix(inout float3x3 mat, in float ch, in float sh, 
 
 inline void PremultiplyTransposeR(inout float3x3 mat, in float ch, in float sh, in int p, in int q)
 {
-    float a = 1.0 - 2.0 * sh * sh;
-    float b = 2.0 * ch * sh;
+    float c = ch * ch - sh * sh;
+    float s = 2.0 * ch * sh;
 
     float3 row_p = mat[p];
     float3 row_q = mat[q];
 
-    mat[p] = a * row_p + b * row_q;
-    mat[q] = -b * row_p + a * row_q;
+    mat[p] = c * row_p + s * row_q;
+    mat[q] = -s * row_p + c * row_q;
 }
 
 // -----------------------------------------------------------------------------
@@ -187,27 +191,20 @@ void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
         ApproxGivensQuaternion(S_mat[0][0], S_mat[0][1], S_mat[1][1], ch, sh);
         rot = float4(ch, 0, 0, sh);
         q = QuaternionMultiply(q, rot);
-        // R = QuaternionToMatrix(rot);
-        // S_mat = mul(transpose(R), mul(S_mat, R));
         RotateSymmetricMatrix(S_mat, ch, sh, 0, 1);
 
-        ApproxGivensQuaternion(S_mat[0][0], S_mat[0][2], S_mat[2][2], ch, sh);
-        rot = float4(ch, 0, -sh, 0);
+        ApproxGivensQuaternion(S_mat[2][2], S_mat[2][0], S_mat[0][0], ch, sh);
+        rot = float4(ch, 0, sh, 0);
         q = QuaternionMultiply(q, rot);
-        // R = QuaternionToMatrix(rot);
-        // S_mat = mul(transpose(R), mul(S_mat, R));
-        RotateSymmetricMatrix(S_mat, ch, -sh, 2, 0);
+        RotateSymmetricMatrix(S_mat, ch, sh, 2, 0);
 
         ApproxGivensQuaternion(S_mat[1][1], S_mat[1][2], S_mat[2][2], ch, sh);
         rot = float4(ch, sh, 0, 0);
         q = QuaternionMultiply(q, rot);
-        // R = QuaternionToMatrix(rot);
-        // S_mat = mul(transpose(R), mul(S_mat, R));
         RotateSymmetricMatrix(S_mat, ch, sh, 1, 2);
     }
 
-    float q_norm = AccurateRSqrt(dot(q, q));
-    q *= q_norm;
+    q *= AccurateRSqrt(dot(q, q));
     V = QuaternionToMatrix(q);
 
     float3x3 B = mul(A, V);
@@ -219,26 +216,19 @@ void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
     QrGivensQuaternion(B[0][0], B[1][0], ch, sh);
     rot = float4(ch, 0, 0, sh);
     u_q = QuaternionMultiply(u_q, rot);
-    // R = QuaternionToMatrix(rot);
-    // B = mul(transpose(R), B);
     PremultiplyTransposeR(B, ch, sh, 0, 1);
 
     QrGivensQuaternion(B[0][0], B[2][0], ch, sh);
     rot = float4(ch, 0, -sh, 0);
     u_q = QuaternionMultiply(u_q, rot);
-    // R = QuaternionToMatrix(rot);
-    // B = mul(transpose(R), B);
     PremultiplyTransposeR(B, ch, -sh, 2, 0);
 
     QrGivensQuaternion(B[1][1], B[2][1], ch, sh);
     rot = float4(ch, sh, 0, 0);
     u_q = QuaternionMultiply(u_q, rot);
-    // R = QuaternionToMatrix(rot);
-    // B = mul(transpose(R), B);
     PremultiplyTransposeR(B, ch, sh, 1, 2);
 
-    float u_q_norm = AccurateRSqrt(dot(u_q, u_q));
-    u_q *= u_q_norm;
+    u_q *= AccurateRSqrt(dot(u_q, u_q));
     U = QuaternionToMatrix(u_q);
 
     S = float3(B[0][0], B[1][1], B[2][2]);
