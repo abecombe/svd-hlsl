@@ -31,8 +31,37 @@
 inline float4 QuaternionMultiply(in float4 q1, in float4 q2)
 {
     return float4(
-        q1.x * q2.x - dot(q1.yzw, q2.yzw),
-        q1.x * q2.yzw + q2.x * q1.yzw + cross(q1.yzw, q2.yzw)
+        q1.x * q2.x - q1.y * q2.y - q1.z * q2.z - q1.w * q2.w,
+        q1.x * q2.y + q1.y * q2.x + q1.z * q2.w - q1.w * q2.z,
+        q1.x * q2.z - q1.y * q2.w + q1.z * q2.x + q1.w * q2.y,
+        q1.x * q2.w + q1.y * q2.z - q1.z * q2.y + q1.w * q2.x
+    );
+}
+inline float4 QuaternionMultiplyXY(in float4 q1, in float q2x, in float q2y)
+{
+    return float4(
+         q1.x * q2x - q1.y * q2y,
+         q1.x * q2y + q1.y * q2x,
+         q1.z * q2x + q1.w * q2y,
+        -q1.z * q2y + q1.w * q2x
+    );
+}
+inline float4 QuaternionMultiplyXZ(in float4 q1, in float q2x, in float q2z)
+{
+    return float4(
+         q1.x * q2x - q1.z * q2z,
+         q1.y * q2x - q1.w * q2z,
+         q1.x * q2z + q1.z * q2x,
+         q1.y * q2z + q1.w * q2x
+    );
+}
+inline float4 QuaternionMultiplyXW(in float4 q1, in float q2x, in float q2w)
+{
+    return float4(
+         q1.x * q2x - q1.w * q2w,
+         q1.y * q2x + q1.z * q2w,
+        -q1.y * q2w + q1.z * q2x,
+         q1.x * q2w + q1.w * q2x
     );
 }
 
@@ -182,25 +211,21 @@ void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
     float4 q = float4(1, 0, 0, 0);
 
     float ch, sh;
-    float4 rot;
     // float3x3 R;
 
     [unroll]
     for (int i = 0; i < 4; i++)
     {
         ApproxGivensQuaternion(S_mat[0][0], S_mat[0][1], S_mat[1][1], ch, sh);
-        rot = float4(ch, 0, 0, sh);
-        q = QuaternionMultiply(q, rot);
+        q = QuaternionMultiplyXW(q, ch, sh);
         RotateSymmetricMatrix(S_mat, ch, sh, 0, 1);
 
         ApproxGivensQuaternion(S_mat[2][2], S_mat[2][0], S_mat[0][0], ch, sh);
-        rot = float4(ch, 0, sh, 0);
-        q = QuaternionMultiply(q, rot);
+        q = QuaternionMultiplyXZ(q, ch, sh);
         RotateSymmetricMatrix(S_mat, ch, sh, 2, 0);
 
         ApproxGivensQuaternion(S_mat[1][1], S_mat[1][2], S_mat[2][2], ch, sh);
-        rot = float4(ch, sh, 0, 0);
-        q = QuaternionMultiply(q, rot);
+        q = QuaternionMultiplyXY(q, ch, sh);
         RotateSymmetricMatrix(S_mat, ch, sh, 1, 2);
     }
 
@@ -214,18 +239,15 @@ void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
     float4 u_q = float4(1, 0, 0, 0);
 
     QrGivensQuaternion(B[0][0], B[1][0], ch, sh);
-    rot = float4(ch, 0, 0, sh);
-    u_q = QuaternionMultiply(u_q, rot);
+    u_q = QuaternionMultiplyXW(u_q, ch, sh);
     PremultiplyTransposeR(B, ch, sh, 0, 1);
 
-    QrGivensQuaternion(B[0][0], B[2][0], ch, sh);
-    rot = float4(ch, 0, -sh, 0);
-    u_q = QuaternionMultiply(u_q, rot);
-    PremultiplyTransposeR(B, ch, -sh, 2, 0);
+    QrGivensQuaternion(B[2][2], B[0][2], ch, sh);
+    u_q = QuaternionMultiplyXZ(u_q, ch, sh);
+    PremultiplyTransposeR(B, ch, sh, 2, 0);
 
     QrGivensQuaternion(B[1][1], B[2][1], ch, sh);
-    rot = float4(ch, sh, 0, 0);
-    u_q = QuaternionMultiply(u_q, rot);
+    u_q = QuaternionMultiplyXY(u_q, ch, sh);
     PremultiplyTransposeR(B, ch, sh, 1, 2);
 
     u_q *= AccurateRSqrt(dot(u_q, u_q));
