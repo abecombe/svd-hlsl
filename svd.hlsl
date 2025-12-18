@@ -211,7 +211,6 @@ void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
     float4 q = float4(1, 0, 0, 0);
 
     float ch, sh;
-    // float3x3 R;
 
     [unroll]
     for (int i = 0; i < 4; i++)
