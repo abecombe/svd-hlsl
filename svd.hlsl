@@ -99,12 +99,12 @@ inline void CondNegSwap(in bool condition, inout float3 x, inout float3 y)
 
 inline void SortSingularValues(inout float3x3 B, inout float3x3 V)
 {
-    float3 v0 = float3(V[0][0], V[1][0], V[2][0]);
-    float3 v1 = float3(V[0][1], V[1][1], V[2][1]);
-    float3 v2 = float3(V[0][2], V[1][2], V[2][2]);
-    float3 b0 = float3(B[0][0], B[1][0], B[2][0]);
-    float3 b1 = float3(B[0][1], B[1][1], B[2][1]);
-    float3 b2 = float3(B[0][2], B[1][2], B[2][2]);
+    float3 v0 = V._m00_m10_m20;
+    float3 v1 = V._m01_m11_m21;
+    float3 v2 = V._m02_m12_m22;
+    float3 b0 = B._m00_m10_m20;
+    float3 b1 = B._m01_m11_m21;
+    float3 b2 = B._m02_m12_m22;
     float pho0 = dot(b0, b0);
     float pho1 = dot(b1, b1);
     float pho2 = dot(b2, b2);
@@ -118,13 +118,13 @@ inline void SortSingularValues(inout float3x3 B, inout float3x3 V)
     c = pho1 < pho2;
     CondNegSwap(c, b1, b2); CondNegSwap(c, v1, v2);
 
-    B[0] = float3(b0.x, b1.x, b2.x);
-    B[1] = float3(b0.y, b1.y, b2.y);
-    B[2] = float3(b0.z, b1.z, b2.z);
+    B._m00_m10_m20 = b0;
+    B._m01_m11_m21 = b1;
+    B._m02_m12_m22 = b2;
 
-    V[0] = float3(v0.x, v1.x, v2.x);
-    V[1] = float3(v0.y, v1.y, v2.y);
-    V[2] = float3(v0.z, v1.z, v2.z);
+    V._m00_m10_m20 = v0;
+    V._m01_m11_m21 = v1;
+    V._m02_m12_m22 = v2;
 }
 
 inline void ApproxGivensQuaternion(in float a11, in float a12, in float a22, out float ch, out float sh)
@@ -195,12 +195,12 @@ inline void PremultiplyTransposeR(inout float3x3 mat, in float ch, in float sh, 
 void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
 {
     float3x3 S_mat = mul(transpose(A), A);
-    float s00 = S_mat[0][0];
-    float s01 = S_mat[0][1];
-    float s02 = S_mat[0][2];
-    float s11 = S_mat[1][1];
-    float s12 = S_mat[1][2];
-    float s22 = S_mat[2][2];
+    float s00 = S_mat._m00;
+    float s01 = S_mat._m01;
+    float s02 = S_mat._m02;
+    float s11 = S_mat._m11;
+    float s12 = S_mat._m12;
+    float s22 = S_mat._m22;
 
     float ch, sh;
 
@@ -231,22 +231,22 @@ void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
 
     float4 u_q = float4(1, 0, 0, 0);
 
-    QrGivensQuaternion(B[0][0], B[1][0], ch, sh);
+    QrGivensQuaternion(B._m00, B._m10, ch, sh);
     u_q = QuaternionMultiplyXW(u_q, ch, sh);
     PremultiplyTransposeR(B, ch, sh, 0, 1);
 
-    QrGivensQuaternion(B[2][2], B[0][2], ch, sh);
+    QrGivensQuaternion(B._m22, B._m02, ch, sh);
     u_q = QuaternionMultiplyXZ(u_q, ch, sh);
     PremultiplyTransposeR(B, ch, sh, 2, 0);
 
-    QrGivensQuaternion(B[1][1], B[2][1], ch, sh);
+    QrGivensQuaternion(B._m11, B._m21, ch, sh);
     u_q = QuaternionMultiplyXY(u_q, ch, sh);
     PremultiplyTransposeR(B, ch, sh, 1, 2);
 
     u_q *= AccurateRSqrt(dot(u_q, u_q));
     U = QuaternionToMatrix(u_q);
 
-    S = float3(B[0][0], B[1][1], B[2][2]);
+    S = B._m00_m11_m22;
 
     float3 sign_s = sign(S);
     S = abs(S);
