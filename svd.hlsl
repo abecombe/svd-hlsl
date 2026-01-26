@@ -78,23 +78,26 @@ inline float AccurateRSqrt(in float x)
 
 inline void CondSwap(in bool condition, inout float x, inout float y)
 {
-    float temp = x;
-    x = condition ? y : x;
-    y = condition ? temp : y;
+    float new_x = condition ? y : x;
+    float new_y = condition ? x : y;
+    x = new_x;
+    y = new_y;
 }
 
 inline void CondSwap(in bool condition, inout float3 x, inout float3 y)
 {
-    float3 temp = x;
-    x = condition ? y : x;
-    y = condition ? temp : y;
+    float3 new_x = condition ? y : x;
+    float3 new_y = condition ? x : y;
+    x = new_x;
+    y = new_y;
 }
 
 inline void CondNegSwap(in bool condition, inout float3 x, inout float3 y)
 {
-    float3 temp = -x;
-    x = condition ? y : x;
-    y = condition ? temp : y;
+    float3 new_x = condition ? y : x;
+    float3 new_y = condition ? -x : y;
+    x = new_x;
+    y = new_y;
 }
 
 inline void SortSingularValues(inout float3x3 B, inout float3x3 V)
@@ -105,6 +108,7 @@ inline void SortSingularValues(inout float3x3 B, inout float3x3 V)
     float3 b0 = B._m00_m10_m20;
     float3 b1 = B._m01_m11_m21;
     float3 b2 = B._m02_m12_m22;
+
     float pho0 = dot(b0, b0);
     float pho1 = dot(b1, b1);
     float pho2 = dot(b2, b2);
@@ -144,8 +148,8 @@ inline void QrGivensQuaternion(in float a1, in float a2, out float ch, out float
     sh = rho > SVD_EPSILON ? a2 : 0.0;
     CondSwap(a1 < 0.0, sh, ch);
     float w = AccurateRSqrt(ch * ch + sh * sh);
-    ch = w * ch;
-    sh = w * sh;
+    ch *= w;
+    sh *= w;
 }
 
 inline void RotateSymmetricMatrix(
@@ -161,17 +165,19 @@ inline void RotateSymmetricMatrix(
     float ss = s * s;
     float cs = c * s;
 
-    float n_pp = cc * s_pp + 2.0 * cs * s_pq + ss * s_qq;
-    float n_qq = ss * s_pp - 2.0 * cs * s_pq + cc * s_qq;
-    float n_pq = (cc - ss) * s_pq + cs * (s_qq - s_pp);
-    float n_kp = c * s_kp + s * s_kq;
-    float n_kq = -s * s_kp + c * s_kq;
+    float old_pp = s_pp;
+    float old_qq = s_qq;
+    float old_pq = s_pq;
 
-    s_pp = n_pp;
-    s_qq = n_qq;
-    s_pq = n_pq;
-    s_kp = n_kp;
-    s_kq = n_kq;
+    s_pp = cc * old_pp + 2.0 * cs * old_pq + ss * old_qq;
+    s_qq = ss * old_pp - 2.0 * cs * old_pq + cc * old_qq;
+    s_pq = (cc - ss) * old_pq + cs * (old_qq - old_pp);
+
+    float old_kp = s_kp;
+    float old_kq = s_kq;
+
+    s_kp = c * old_kp + s * old_kq;
+    s_kq = -s * old_kp + c * old_kq;
 }
 
 inline void PremultiplyTransposeR(inout float3x3 mat, in float ch, in float sh, in int p, in int q)
