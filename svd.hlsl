@@ -200,13 +200,16 @@ inline void PremultiplyTransposeR(inout float3x3 mat, in float ch, in float sh, 
 // -----------------------------------------------------------------------------
 void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
 {
-    float3x3 S_mat = mul(transpose(A), A);
-    float s00 = S_mat._m00;
-    float s01 = S_mat._m01;
-    float s02 = S_mat._m02;
-    float s11 = S_mat._m11;
-    float s12 = S_mat._m12;
-    float s22 = S_mat._m22;
+    float3 c0 = A._m00_m10_m20;
+    float3 c1 = A._m01_m11_m21;
+    float3 c2 = A._m02_m12_m22;
+
+    float s00 = dot(c0, c0);
+    float s01 = dot(c0, c1);
+    float s02 = dot(c0, c2);
+    float s11 = dot(c1, c1);
+    float s12 = dot(c1, c2);
+    float s22 = dot(c2, c2);
 
     float ch, sh;
 
