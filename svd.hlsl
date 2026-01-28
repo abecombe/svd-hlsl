@@ -193,10 +193,11 @@ inline void PremultiplyTransposeR(inout float3x3 mat, in float ch, in float sh, 
 }
 
 // -----------------------------------------------------------------------------
-// Main SVD function
-// input      : A
-// output     : U, S(diagonal), V
-// definition : A = U * diag(S) * V^T
+// Computes the Singular Value Decomposition (SVD) of A
+// A = U * diag(S) * V^T
+//
+// U, V : orthogonal matrices
+// S    : non-negative singular values, sorted descending
 // -----------------------------------------------------------------------------
 void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
 {
@@ -262,6 +263,32 @@ void SVD(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
     U[0] *= sign_s;
     U[1] *= sign_s;
     U[2] *= sign_s;
+}
+
+// -----------------------------------------------------------------------------
+// SVD-based Polar Decomposition
+// Decomposes A into rotation and stretch components
+// A = U * diag(S) * V^T
+// R = U * V^T
+//
+// U, V : orthogonal matrices
+// S    : non-negative singular values, sorted descending
+// R    : pure rotation matrix (det(R) = +1)
+// -----------------------------------------------------------------------------
+void SVD_PolarDecomposition(in float3x3 A, out float3x3 U, out float3 S, out float3x3 V, out float3x3 R)
+{
+    SVD(A, U, S, V);
+
+    float detU = dot(U._m00_m10_m20, cross(U._m01_m11_m21, U._m02_m12_m22));
+    float detV = dot(V._m00_m10_m20, cross(V._m01_m11_m21, V._m02_m12_m22));
+
+    if (detU * detV < 0)
+    {
+        // S.x *= -1;
+        U._m00_m10_m20 *= -1;
+    }
+
+    R = mul(U, transpose(V));
 }
 
 #endif /* SVD_HLSL */
