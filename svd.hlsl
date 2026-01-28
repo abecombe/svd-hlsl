@@ -12,8 +12,18 @@
 //   Technical Report #1690, University of Wisconsin–Madison, May 2011
 //
 // The algorithm follows the quaternion-based approximate Jacobi
-// eigenanalysis for AᵀA, sorting of singular values, and QR-based
+// eigenanalysis of AᵀA, sorting of singular values, and QR-based
 // extraction of U and Σ, as described in the paper.
+//
+// This file also provides an SVD-based Polar Decomposition,
+// allowing a matrix A to be decomposed into rotation and stretch:
+//
+//   A = U · diag(S) · Vᵀ
+//   R = U · Vᵀ
+//
+// The implementation avoids trigonometric functions and heavy
+// branching, making it suitable for GPU execution, including
+// ComputeShaders, real-time graphics, and SIMD-style workloads.
 //
 // Reference:
 // https://pages.cs.wisc.edu/~sifakis/papers/SVD_TR1690.pdf
